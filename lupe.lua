@@ -1,5 +1,5 @@
 -- LUPE
--- built at 2014-12-09 01:45:35
+-- built at 2015-01-04 17:43:46
 -- Author: Takuya Ueda
 
 --- utils.lua
@@ -1662,42 +1662,32 @@ function CoroutineDebugger.create(debugger)
     threads  = {},
   }
 
-  --- Lua5.1用のsethookが呼ばれるラッパーを作る．
-  -- func: ラップする関数
-  function m:createCoroutineFunc51(func)
-    local debugger = self.debugger
-    return function()
-      local hook, _, _ = debug.gethook()
-      if not hook and debugger.is_started then
-        debug.sethook(debugger.stop_callback, 'crl')
-      end
-      return func(coroutine.yield())
+  --- Lua5.1用にsethookする．
+  -- mode: hookのモード
+  function m.sethook51(mode)
+    local hook = debug.gethook()
+    if not hook and m.debugger.is_started then
+      debug.sethook(m.debugger.stop_callback, mode)
     end
   end
 
-  --- Lua5.2用のsethookが呼ばれるラッパーを作る．
-  -- func: ラップする関数
-  function m:createCoroutineFunc52(func)
-    local threads  = self.threads
-    local debugger = self.debugger
-    return function()
-      local th, _ = coroutine.running()
-      local hook, _, _ = debug.gethook(th)
-      if not hook and debugger.is_started then
-        debug.sethook(th, debugger.stop_callback, 'crl')
-        table.insert(threads, th)
-      end
-      return func(coroutine.yield())
+  --- Lua5.2用にsethookする．
+  -- mode: hookのモード
+  function m.sethook52(mode)
+    local th = coroutine.running()
+    local hook = debug.gethook(th)
+    if not hook and m.debugger.is_started then
+      debug.sethook(th, m.debugger.stop_callback, mode)
+      table.insert(m.threads, th)
     end
   end
 
-  --- sethookが呼ばれるラッパーを作る．
-  -- func: ラップする関数
-  function m:createCoroutineFunc(func)
+  -- Luaのバージョンによって，sethookの方法を分ける
+  function m.sethook(mode)
     if _VERSION == 'Lua 5.2' then
-      return self:createCoroutineFunc52(func)
+      m.sethook52(mode)
     else
-      return self:createCoroutineFunc51(func)
+      m.sethook51(mode)
     end
   end
 
@@ -1706,16 +1696,19 @@ function CoroutineDebugger.create(debugger)
   function m:start()
     self.cocreate = coroutine.create
     coroutine.create = function(func)
-      local th = self.cocreate(self:createCoroutineFunc(func))
-      coroutine.resume(th)
-      return th 
+      return self.cocreate(function(...)
+        m.sethook('crl')
+        return func(...)
+      end)
     end
 
     self.cowrap = coroutine.wrap
     coroutine.wrap = function(func)
-      local wraped = self.cowrap(self:createCoroutineFunc(func))
-      wraped()
-      return wraped
+      return self.cowrap(function(...)
+        local th, _ = coroutine.running()
+        m.sethook('crl')
+        return func(...)
+      end)
     end
   end
 
