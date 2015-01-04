@@ -55,7 +55,6 @@ function CoroutineDebugger.create(debugger)
     self.cowrap = coroutine.wrap
     coroutine.wrap = function(func)
       return self.cowrap(function(...)
-        local th, _ = coroutine.running()
         m.sethook('crl')
         return func(...)
       end)

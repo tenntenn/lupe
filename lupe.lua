@@ -1,5 +1,5 @@
 -- LUPE
--- built at 2015-01-04 17:43:46
+-- built at 2015-01-04 17:46:05
 -- Author: Takuya Ueda
 
 --- utils.lua
@@ -1705,7 +1705,6 @@ function CoroutineDebugger.create(debugger)
     self.cowrap = coroutine.wrap
     coroutine.wrap = function(func)
       return self.cowrap(function(...)
-        local th, _ = coroutine.running()
         m.sethook('crl')
         return func(...)
       end)
